@@ -8,12 +8,7 @@ import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Util;
-import hudson.model.AbstractBuild;
-import hudson.model.AbstractProject;
-import hudson.model.BuildListener;
-import hudson.model.Computer;
-import hudson.model.Node;
-import hudson.model.Result;
+import hudson.model.*;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.tools.ToolInstallation;
@@ -326,6 +321,7 @@ public class Gradle extends Builder implements DryRun {
                     listener.getLogger(), build.getCharset());
             int r;
             try {
+                // THis is what couples us to non-pipeline builds
                 r = launcher.launch().cmds(args).envs(env).stdout(gca)
                         .pwd(rootLauncher).join();
             } finally {
@@ -426,7 +422,7 @@ public class Gradle extends Builder implements DryRun {
     }
 
     @Extension @Symbol("gradle")
-    public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
+    public static class DescriptorImpl extends BuildStepDescriptor<Builder> {
 
         @CopyOnWrite
         private volatile GradleInstallation[] installations = new GradleInstallation[0];
