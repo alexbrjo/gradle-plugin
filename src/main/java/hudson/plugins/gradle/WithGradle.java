@@ -32,62 +32,50 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import jenkins.tasks.SimpleBuildStep;
 import org.jenkinsci.Symbol;
+import org.jenkinsci.plugins.workflow.steps.*;
+import org.kohsuke.stapler.DataBoundConstructor;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Set;
 
 /**
  * @author Alex Johnson
  */
-public class WithGradle extends Gradle implements SimpleBuildStep {
+public class WithGradle extends Step {
+
+    @DataBoundConstructor
+    public WithGradle () {
+
+    }
 
     @Override
-    public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath filePath, @Nonnull Launcher launcher, @Nonnull TaskListener taskListener) throws InterruptedException, IOException {
-        perform((AbstractBuild) run, launcher, (BuildListener) taskListener);
+    public StepExecution start(StepContext context) throws Exception {
+        return new WithGradleExecution(context, this);
     }
 
     @Override
     public DescriptorImpl getDescriptor() {
-        return (DescriptorImpl) super.getDescriptor();
+        return new DescriptorImpl();
     }
 
-    @Symbol("withGradle")
-    @Extension
-    public static final class DescriptorImpl extends Gradle.DescriptorImpl {
+    private static final class DescriptorImpl extends StepDescriptor {
 
         @Override
-        public boolean isApplicable(Class jobType) {
-            return true;
+        public Set<? extends Class<?>> getRequiredContext() {
+            return Collections.EMPTY_SET;
+        }
+
+        @Override
+        public String getFunctionName() {
+            return "withGradle";
         }
 
         @Override
         public String getDisplayName() {
-            return "withGradle";
+            return "Builds with Gradle annotator";
         }
     }
 
-    /*public static final class ExecutionImpl extends SynchronousNonBlockingStepExecution<Void> {
-
-        private transient final WithGradle step;
-        // The serial ID
-        private static final long serialVersionUID = 1L;
-
-        ExecutionImpl(WithGradle step, StepContext context) {
-            super(context);
-            this.step = step;
-        }
-
-        @Override
-        protected Void run() throws Exception {
-            Run r = getContext().get(Run.class);
-            if (r instanceof AbstractBuild) {
-                Launcher launcher = getContext().get(Launcher.class);
-                BuildListener listener = (BuildListener)getContext().get(TaskListener.class);
-                step.perform((AbstractBuild)r, launcher, listener);
-            }
-            return null;
-        }
-
-    }*/
 }

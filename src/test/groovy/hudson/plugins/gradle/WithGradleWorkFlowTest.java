@@ -23,10 +23,12 @@
  */
 package hudson.plugins.gradle;
 
+import hudson.model.Cause;
 import hudson.model.Label;
 import hudson.tasks.Notifier;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
+import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -41,9 +43,10 @@ public class WithGradleWorkFlowTest {
 
     @Test
     public void testGradleWorkflowStep() throws Exception {
-        WorkflowJob p1 = j.getInstance().createProject(WorkflowJob.class, "DryRunTest");
+        WorkflowJob p1 = j.getInstance().createProject(WorkflowJob.class, "FakeProject");
         j.createOnlineSlave(Label.get("remote"));
         p1.setDefinition(new CpsFlowDefinition("node {" +
+                "writeFile(file:'build.gradle', text:'defaultTasks \\\'hello\\\'\\ntask hello << { println \\\'Hello\\\' }') \n" +
                 "withGradle() \n"+
                 "}", false));
         j.assertBuildStatusSuccess(p1.scheduleBuild2(0));
