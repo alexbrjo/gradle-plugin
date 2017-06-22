@@ -24,12 +24,18 @@
 package hudson.plugins.gradle;
 
 import hudson.model.Label;
+import hudson.tools.ToolDescriptor;
+import hudson.tools.ToolInstallation;
+import hudson.tools.ToolProperty;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * @author Alex Johnson
@@ -41,10 +47,14 @@ public class WithGradleWorkFlowTest {
 
     @Test
     public void testGradleWorkflowStep() throws Exception {
+
         WorkflowJob p1 = j.jenkins.createProject(WorkflowJob.class, "FakeProject");
+        GradleInstallation g = new GradleInstallation("g2", "/no/such/home", Collections.EMPTY_LIST);
+        ToolInstallation.all().add((ToolDescriptor) g.getDescriptor());
+
         p1.setDefinition(new CpsFlowDefinition("node {\n" +
                 "writeFile(file:'build.gradle', text:'defaultTasks \\\'hello\\\'\\ntask hello << { println \\\'Hello\\\' }') \n" +
-                    "withGradle {\n" +
+                    "withGradle (gradle: 'g2') {\n" +
                         "sh 'echo BODY CALLED'\n" +
                     "}\n" +
                 "}", false));

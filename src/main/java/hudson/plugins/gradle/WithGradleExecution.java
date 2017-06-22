@@ -23,6 +23,7 @@
  */
 package hudson.plugins.gradle;
 
+import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.console.ConsoleLogFilter;
@@ -37,6 +38,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.nio.charset.Charset;
+import java.util.HashMap;
 
 /**
  * The execution of the {@link WithGradle} pipeline step
@@ -50,10 +52,11 @@ public class WithGradleExecution extends StepExecution {
     private transient FilePath workspace;
     private transient Run run;
     private transient TaskListener listener;
+    private transient EnvVars envVars;
 
     private BodyExecution block;
 
-    public WithGradleExecution (StepContext context, WithGradle step) throws Exception { // TODO: do better
+    public WithGradleExecution (StepContext context, WithGradle step) throws IOException, InterruptedException {
         super(context);
         this.step = step;
 
@@ -67,12 +70,18 @@ public class WithGradleExecution extends StepExecution {
      */
     @Override
     public boolean start() throws Exception {
+        envVars = new EnvVars();
+
+        GradleInstallation gradle = step.getGradle();
+        if (gradle != null) {
+            envVars.put("GRADLE_HOME", gradle.getHome());
+        }
 
         ConsoleLogFilter annotator = BodyInvoker.mergeConsoleLogFilters(getContext().get(ConsoleLogFilter.class), new GradleConsoleFilter());
-        EnvironmentExpander expander = EnvironmentExpander.merge(null, getContext().get(EnvironmentExpander.class));
+        EnvironmentExpander expander = EnvironmentExpander.merge(getContext().get(EnvironmentExpander.class), new GradleExpander(envVars));
 
         if (getContext().hasBody()) {
-           block = getContext().newBodyInvoker().withContext(annotator).start();
+           block = getContext().newBodyInvoker().withContexts(annotator, expander).start();
         }
         getContext().onSuccess(Result.SUCCESS);
         return false;
@@ -107,6 +116,29 @@ public class WithGradleExecution extends StepExecution {
         @Override
         public OutputStream decorateLogger(AbstractBuild build, final OutputStream out) {
             return new GradleConsoleAnnotator(out, Charset.forName("UTF-8"));
+        }
+    }
+
+    /**
+     * Overrides the existing environment with the pipeline Gradle settings
+     */
+    private static final class GradleExpander extends EnvironmentExpander {
+
+        private static final long serialVersionUID = 1;
+
+        private final EnvVars gradleEnv;
+
+        private GradleExpander(EnvVars env) {
+            this.gradleEnv = new EnvVars();
+            gradleEnv.putAll(env);
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public void expand(EnvVars env) throws IOException, InterruptedException {
+            env.overrideAll(gradleEnv);
         }
     }
 

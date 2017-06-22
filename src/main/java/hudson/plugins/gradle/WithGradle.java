@@ -24,12 +24,15 @@
 package hudson.plugins.gradle;
 
 import com.google.common.collect.ImmutableSet;
+import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.console.ConsoleLogFilter;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import hudson.tools.ToolInstallation;
+import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.steps.*;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
@@ -38,6 +41,7 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -48,9 +52,34 @@ import java.util.Set;
  */
 public class WithGradle extends Step {
 
+    /** The Gradle installation to use */
+    private GradleInstallation installation;
+
     @DataBoundConstructor
     public WithGradle () {
 
+    }
+
+    /**
+     * Sets the globally configured gradle installation to set the GRADLE_HOME for
+     * @param gradle the name of the installation to use
+     */
+    @DataBoundSetter
+    public void setGradle (String gradle) {
+        if (gradle == null) {
+            return;
+        }
+
+        GradleInstallation[] installations = ToolInstallation.all().get(GradleInstallation.DescriptorImpl.class).getInstallations();
+        for (GradleInstallation i : installations) {
+            if (i.getName().equals(gradle)) {
+                installation = i;
+            }
+        }
+    }
+
+    public GradleInstallation getGradle () {
+        return installation;
     }
 
     @Override
@@ -68,7 +97,7 @@ public class WithGradle extends Step {
 
         @Override
         public Set<? extends Class<?>> getRequiredContext() {
-            return ImmutableSet.of(Run.class, FilePath.class, TaskListener.class);
+            return ImmutableSet.of(Run.class, FilePath.class, TaskListener.class, EnvVars.class);
         }
 
         @Override
