@@ -41,6 +41,9 @@ import java.util.Collections;
 import java.util.Set;
 
 /**
+ * The WithGradle pipeline step. Configures a Gradle installation and ConsoleAnnotator for a
+ * Gradle build to run.
+ *
  * @author Alex Johnson
  */
 public class WithGradle extends Step {
@@ -65,7 +68,7 @@ public class WithGradle extends Step {
 
         @Override
         public Set<? extends Class<?>> getRequiredContext() {
-            return Collections.EMPTY_SET;//ImmutableSet.of(Run.class, FilePath.class, TaskListener.class);
+            return ImmutableSet.of(Run.class, FilePath.class, TaskListener.class);
         }
 
         @Override

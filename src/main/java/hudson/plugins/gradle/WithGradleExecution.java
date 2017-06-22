@@ -26,50 +26,88 @@ package hudson.plugins.gradle;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.console.ConsoleLogFilter;
+import hudson.model.AbstractBuild;
 import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import org.jenkinsci.plugins.workflow.steps.*;
 
 import javax.annotation.Nonnull;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.Serializable;
+import java.nio.charset.Charset;
 
 /**
+ * The execution of the {@link WithGradle} pipeline step
+ *
  * @author Alex Johnson
  */
 public class WithGradleExecution extends StepExecution {
 
-    private WithGradle step;
-    private BodyExecution block;
+    /** The Step and it's required context */
+    private transient WithGradle step;
+    private transient FilePath workspace;
+    private transient Run run;
+    private transient TaskListener listener;
 
-    private FilePath workspace;
-    private Run run;
-    private TaskListener listener;
+    private BodyExecution block;
 
     public WithGradleExecution (StepContext context, WithGradle step) throws Exception { // TODO: do better
         super(context);
-        //this.step = step;
+        this.step = step;
 
-        /*workspace = context.get(FilePath.class);
+        workspace = context.get(FilePath.class);
         run = context.get(Run.class);
-        listener = context.get(TaskListener.class);*/
+        listener = context.get(TaskListener.class);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean start() throws Exception {
 
-        //ConsoleLogFilter annotator = BodyInvoker.mergeConsoleLogFilters(null, getContext().get(ConsoleLogFilter.class));
-        //EnvironmentExpander expander = EnvironmentExpander.merge(null, getContext().get(EnvironmentExpander.class));
+        ConsoleLogFilter annotator = BodyInvoker.mergeConsoleLogFilters(getContext().get(ConsoleLogFilter.class), new GradleConsoleFilter());
+        EnvironmentExpander expander = EnvironmentExpander.merge(null, getContext().get(EnvironmentExpander.class));
 
         if (getContext().hasBody()) {
-           block = getContext().newBodyInvoker().start();
+           block = getContext().newBodyInvoker().withContext(annotator).start();
         }
         getContext().onSuccess(Result.SUCCESS);
         return false;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void stop(@Nonnull Throwable cause) throws Exception {
 
+    }
+
+    /**
+     * Wraps {@link GradleConsoleAnnotator} in a {@link ConsoleLogFilter} so it can be merged with the existing
+     * log filter.
+     */
+    private static class GradleConsoleFilter extends ConsoleLogFilter implements Serializable {
+
+        private static final long serialVersionUID = 1;
+
+        public GradleConsoleFilter() {
+        }
+
+        /**
+         * Creates a {@link GradleConsoleAnnotator} for an {@link OutputStream}
+         *
+         * @param build this is ignored
+         * @param out the {@link OutputStream} to annotate
+         * @return the {@link GradleConsoleAnnotator} for the OutputStream
+         */
+        @Override
+        public OutputStream decorateLogger(AbstractBuild build, final OutputStream out) {
+            return new GradleConsoleAnnotator(out, Charset.forName("UTF-8"));
+        }
     }
 
 }

@@ -44,19 +44,10 @@ public class WithGradleWorkFlowTest {
         WorkflowJob p1 = j.jenkins.createProject(WorkflowJob.class, "FakeProject");
         p1.setDefinition(new CpsFlowDefinition("node {\n" +
                 "writeFile(file:'build.gradle', text:'defaultTasks \\\'hello\\\'\\ntask hello << { println \\\'Hello\\\' }') \n" +
-                    "withGradle () {\n" +
-                    "sh 'echo hello'\n" +
+                    "withGradle {\n" +
+                        "sh 'echo BODY CALLED'\n" +
                     "}\n" +
                 "}", false));
         j.assertBuildStatusSuccess(p1.scheduleBuild2(0));
-    }
-
-    @Test
-    public void testTests() throws Exception {
-        WorkflowJob p = j.getInstance().createProject(WorkflowJob.class, "DryRunTest");
-        j.createOnlineSlave(Label.get("remote"));
-        p.setDefinition(new CpsFlowDefinition("node { sh 'echo echo echo' }",
-                false));
-        WorkflowRun b = j.assertBuildStatusSuccess(p.scheduleBuild2(0));
     }
 }
