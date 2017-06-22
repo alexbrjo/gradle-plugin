@@ -24,6 +24,7 @@
 package hudson.plugins.gradle;
 
 import com.google.common.collect.ImmutableSet;
+import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.console.ConsoleLogFilter;
@@ -59,7 +60,8 @@ public class WithGradle extends Step {
         return new DescriptorImpl();
     }
 
-    private static final class DescriptorImpl extends StepDescriptor {
+    @Extension
+    public static final class DescriptorImpl extends StepDescriptor {
 
         @Override
         public Set<? extends Class<?>> getRequiredContext() {
