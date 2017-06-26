@@ -23,14 +23,14 @@
  */
 package hudson.plugins.gradle;
 
+import hudson.AbortException;
 import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.console.ConsoleLogFilter;
-import hudson.model.AbstractBuild;
-import hudson.model.Result;
-import hudson.model.Run;
-import hudson.model.TaskListener;
+import hudson.model.*;
+import hudson.tools.ToolInstallation;
+import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.workflow.steps.*;
 
 import javax.annotation.Nonnull;
@@ -41,7 +41,8 @@ import java.nio.charset.Charset;
 import java.util.HashMap;
 
 /**
- * The execution of the {@link WithGradle} pipeline step
+ * The execution of the {@link WithGradle} pipeline step. Configures the ConsoleAnnotator for a Gradle build and, if
+ * specified, configures Gradle and Java for the build.
  *
  * @author Alex Johnson
  */
@@ -72,17 +73,56 @@ public class WithGradleExecution extends StepExecution {
     public boolean start() throws Exception {
         envVars = new EnvVars();
 
-        GradleInstallation gradle = step.getGradle();
-        if (gradle != null) {
-            envVars.put("GRADLE_HOME", gradle.getHome());
+        String gradleName = step.getGradle();
+        if (gradleName != null) {
+            GradleInstallation gradleInstallation = null;
+            GradleInstallation[] installations = ToolInstallation.all().get(GradleInstallation.DescriptorImpl.class).getInstallations();
+            for (GradleInstallation i : installations) {
+                if (i.getName().equals(gradleName)) {
+                    gradleInstallation = i;
+                }
+            }
+            if (gradleInstallation == null) {
+                listener.getLogger().printf("[WithGradle] Gradle Installation '%s' not found. Defaulting to system installation. %n", gradleName);
+            } else {
+                listener.getLogger().printf("[WithGradle] Gradle Installation found. Using '%s' %n", gradleInstallation.getName());
+                envVars.put("GRADLE_HOME", gradleInstallation.getHome());
+            }
+            // set build failure and return if incorrect
         }
+
+        String javaName = step.getJdk();
+        if (javaName != null) {
+            JDK javaInstallation = Jenkins.getActiveInstance().getJDK(javaName);
+            if (javaInstallation == null) {
+                listener.getLogger().printf("[WithGradle] Java Installation '%s' not found. Defaulting to system installation. %n", javaName);
+            } else {
+                listener.getLogger().printf("[WithGradle] Java Installation found. Using '%s' %n", javaInstallation.getName());
+                envVars.put("JAVA_HOME", javaInstallation.getHome());
+            }
+            // set build failure and return if incorrect
+        }
+
+        /*
+            Possible TODO:
+             - specify settings.gradle
+             - specify artifact repository
+             - other Gradle options
+                Gradle has a lot of options that can be specified via command line or gradle.properties, imo the only
+                ones that need to be taken care of are the ones that need to be added to the build environment
+        */
 
         ConsoleLogFilter annotator = BodyInvoker.mergeConsoleLogFilters(getContext().get(ConsoleLogFilter.class), new GradleConsoleFilter());
         EnvironmentExpander expander = EnvironmentExpander.merge(getContext().get(EnvironmentExpander.class), new GradleExpander(envVars));
 
         if (getContext().hasBody()) {
            block = getContext().newBodyInvoker().withContexts(annotator, expander).start();
+        } else {
+            throw new AbortException(String.format("[WithGradle][ERROR] No body to invoke. Make sure your withGradle " +
+                    "pipeline step includes a code block that runs your Gradle build. example: %n> withGradle (){%n>     sh " +
+                    "'gradle myTask'%n> }%n"));
         }
+
         getContext().onSuccess(Result.SUCCESS);
         return false;
     }

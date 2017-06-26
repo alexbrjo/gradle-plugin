@@ -45,15 +45,17 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * The WithGradle pipeline step. Configures a Gradle installation and ConsoleAnnotator for a
- * Gradle build to run.
+ * The WithGradle pipeline step. For the most part only getters, setters and scaffolding code. The actual logic and
+ * configuaration are in {@Link WithGradleExecution}.
  *
  * @author Alex Johnson
  */
 public class WithGradle extends Step {
 
     /** The Gradle installation to use */
-    private GradleInstallation installation;
+    private String gradleName;
+    /** The name of the Java Installation */
+    private String javaName;
 
     @DataBoundConstructor
     public WithGradle () {
@@ -65,22 +67,27 @@ public class WithGradle extends Step {
      * @param gradle the name of the installation to use
      */
     @DataBoundSetter
-    public void setGradle (String gradle) {
-        if (gradle == null) {
-            return;
-        }
-
-        GradleInstallation[] installations = ToolInstallation.all().get(GradleInstallation.DescriptorImpl.class).getInstallations();
-        for (GradleInstallation i : installations) {
-            if (i.getName().equals(gradle)) {
-                installation = i;
-            }
-        }
+    public void setGradle (String gradleName) {
+        this.gradleName = gradleName;
     }
 
-    public GradleInstallation getGradle () {
-        return installation;
+    public String getGradle () {
+        return gradleName;
     }
+
+    /**
+     * Sets the Java installation to use
+     * @param javaInstallation the path of the jdk to use
+     */
+    @DataBoundSetter
+    public void setJdk (String javaInstallation) {
+        this.javaName = javaInstallation;
+    }
+
+    public String getJdk () {
+        return javaName;
+    }
+
 
     @Override
     public StepExecution start(StepContext context) throws Exception {

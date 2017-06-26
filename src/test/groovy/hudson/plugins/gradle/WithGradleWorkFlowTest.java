@@ -23,7 +23,10 @@
  */
 package hudson.plugins.gradle;
 
+import hudson.model.JDK;
 import hudson.model.Label;
+import hudson.model.Run;
+import hudson.model.queue.QueueTaskFuture;
 import hudson.tools.ToolDescriptor;
 import hudson.tools.ToolInstallation;
 import hudson.tools.ToolProperty;
@@ -36,6 +39,7 @@ import org.jvnet.hudson.test.JenkinsRule;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Queue;
 
 /**
  * @author Alex Johnson
@@ -47,17 +51,20 @@ public class WithGradleWorkFlowTest {
 
     @Test
     public void testGradleWorkflowStep() throws Exception {
-
         WorkflowJob p1 = j.jenkins.createProject(WorkflowJob.class, "FakeProject");
         GradleInstallation g = new GradleInstallation("g2", "/no/such/home", Collections.EMPTY_LIST);
+        j.jenkins.setJDKs(Collections.singleton(new JDK("jaba", "/no/such/home")));
         ToolInstallation.all().add((ToolDescriptor) g.getDescriptor());
-
         p1.setDefinition(new CpsFlowDefinition("node {\n" +
                 "writeFile(file:'build.gradle', text:'defaultTasks \\\'hello\\\'\\ntask hello << { println \\\'Hello\\\' }') \n" +
-                    "withGradle (gradle: 'g2') {\n" +
-                        "sh 'echo BODY CALLED'\n" +
-                    "}\n" +
-                "}", false));
-        j.assertBuildStatusSuccess(p1.scheduleBuild2(0));
+                "withGradle (" +
+                    "gradle: 'g2'," +
+                    "jdk: 'jaba' " +
+                ") {\n" +
+                        "sh 'gradle'\n" + // runs default task
+                "}\n" +
+            "}", false));
+        WorkflowRun r = p1.scheduleBuild2(0).get();
+        j.assertBuildStatusSuccess(r);
     }
 }
