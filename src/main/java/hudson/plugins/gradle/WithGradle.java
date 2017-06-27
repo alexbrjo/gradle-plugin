@@ -46,7 +46,7 @@ import java.util.Set;
 
 /**
  * The WithGradle pipeline step. For the most part only getters, setters and scaffolding code. The actual logic and
- * configuaration are in {@Link WithGradleExecution}.
+ * configuration are in {@link WithGradleExecution}.
  *
  * @author Alex Johnson
  */
@@ -64,7 +64,7 @@ public class WithGradle extends Step {
 
     /**
      * Sets the globally configured gradle installation to set the GRADLE_HOME for
-     * @param gradle the name of the installation to use
+     * @param gradleName the name of the installation to use
      */
     @DataBoundSetter
     public void setGradle (String gradleName) {
