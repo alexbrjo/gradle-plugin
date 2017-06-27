@@ -41,6 +41,7 @@ import java.nio.charset.Charset;
 import java.sql.CallableStatement;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The execution of the {@link WithGradle} pipeline step. Configures the ConsoleAnnotator for a Gradle build and, if
@@ -73,7 +74,7 @@ public class WithGradleExecution extends StepExecution {
      */
     @Override
     public boolean start() throws Exception {
-        listener.getLogger().printf("[WithGradle] Execution begin");
+        listener.getLogger().printf("[WithGradle] Execution begin %n");
         envVars = new EnvVars();
 
         String gradleName = step.getGradle();
@@ -106,25 +107,12 @@ public class WithGradleExecution extends StepExecution {
             // set build failure and return if incorrect
         }
 
-        /*
-            Possible TODO:
-             - specify settings.gradle
-             - specify artifact repository
-             - other Gradle options
-                Gradle has a lot of options that can be specified via command line or gradle.properties, imo the only
-                ones that need to be taken care of are the ones that need to be added to the build environment
-        */
-
         ConsoleLogFilter annotator = BodyInvoker.mergeConsoleLogFilters(getContext().get(ConsoleLogFilter.class), new GradleConsoleFilter());
         EnvironmentExpander expander = EnvironmentExpander.merge(getContext().get(EnvironmentExpander.class), new GradleExpander(envVars));
 
-        if (getContext().hasBody()) {
-           block = getContext().newBodyInvoker().withContexts(annotator, expander).withCallback(new CallbackImpl()).start();
-        } else {
-            throw new AbortException(String.format("[WithGradle][ERROR] No body to invoke. Make sure your withGradle " +
-                    "pipeline step includes a code block that runs your Gradle build. example: %n> withGradle (){%n>     sh " +
-                    "'gradle myTask'%n> }%n"));
-        }
+        block = getContext().newBodyInvoker().withContexts(annotator, expander).start();
+        getContext().onSuccess(Result.SUCCESS);
+
         return false;
     }
 
@@ -181,51 +169,6 @@ public class WithGradleExecution extends StepExecution {
         public void expand(EnvVars env) throws IOException, InterruptedException {
             env.overrideAll(gradleEnv);
         }
-    }
-
-    /**
-     * The Callback for the end of the withGradle block
-     */
-    private static class CallbackImpl extends BodyExecutionCallback.TailCall {
-
-        public CallbackImpl() {
-        }
-
-        @Override
-        protected void finished(StepContext context) throws Exception {
-            /*
-               This checks each line of the log for the Gradle build failure message, there is probably a better way to do this.
-
-               This is called immediately after the code block has been executed which is async with the Gradle build. This
-               will almost always set the build status to true because the Gradle build will not have completed when the
-               code block body has finished executing.
-            */
-            boolean finished = false;
-            while (!finished) {
-                List<String> log = context.get(Run.class).getLog(100);
-                for (String s : log) {
-                    if (s.contains("BUILD") || s.contains("ERROR")) {
-                        finished = true;
-                        break;
-                    }
-                }
-                Thread.sleep(100);
-            }
-
-            List<String> log = context.get(Run.class).getLog(100);
-            for (String s : log) {
-                if (s.contains("BUILD FAILED")) {
-                    context.onFailure(new Failure("Gradle build was marked as FAILURE"));
-                    return;
-                } else if (s.contains("ERROR")) {
-                    context.onFailure(new Failure("Gradle threw an ERROR"));
-                    return;
-                }
-            }
-            context.onSuccess(Result.SUCCESS);
-        }
-
-        private static final long serialVersionUID = 1L;
     }
 
 }
