@@ -23,7 +23,6 @@
  */
 package hudson.plugins.gradle;
 
-import com.google.inject.Inject;
 import hudson.model.Node;
 import hudson.model.Result;
 import hudson.slaves.DumbSlave;
@@ -38,6 +37,9 @@ import org.jenkinsci.test.acceptance.junit.WithDocker;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.junit.runners.model.Statement;
+import org.jvnet.hudson.test.RestartableJenkinsRule;
+import hudson.model.Executor;
 
 import java.util.Collections;
 
@@ -50,7 +52,7 @@ import java.util.Collections;
 public class WithGradleWorkFlowTest {
 
     @Rule
-    public JenkinsRule j = new JenkinsRule();
+    public RestartableJenkinsRule r = new RestartableJenkinsRule();
 
     @Rule
     public DockerRule<GradleContainer> gradleSlave = new DockerRule<GradleContainer>(GradleContainer.class);
@@ -68,49 +70,57 @@ public class WithGradleWorkFlowTest {
 
     @Test
     public void testGradle () throws Exception {
-        GradleContainer slave = gradleSlave.get();
-        j.jenkins.setNumExecutors(0);
-        j.jenkins.addNode(new DumbSlave("remote", "", "/home/test/slave", "1", Node.Mode.NORMAL, "",
-                new SSHLauncher(slave.ipBound(8080), slave.port(8080), "test", "test", "", ""),
-                RetentionStrategy.INSTANCE, Collections.<NodeProperty<?>>emptyList()));
-        WorkflowJob p1 = j.jenkins.createProject(WorkflowJob.class, "FakeProject");
-        p1.setDefinition(new CpsFlowDefinition("node {\n" + build_gradle + "withGradle {\n sh 'gradle'\n}\n}", false));
-        WorkflowRun r = j.assertBuildStatus(Result.SUCCESS, p1.scheduleBuild2(0));
+        r.addStep(new Statement() {
+            @Override
+            public void evaluate() throws Throwable {
+                GradleContainer slave = gradleSlave.get();
+                // 0 executors so build has to run on slave
+                r.j.jenkins.setNumExecutors(0);
+                // SSH launcher to Docker container
+                r.j.jenkins.addNode(new DumbSlave("remote", "", "/home/test/slave", "1", Node.Mode.NORMAL, "",
+                        new SSHLauncher(slave.ipBound(8080), slave.port(8080), "test", "test", "", ""),
+                        RetentionStrategy.INSTANCE, Collections.<NodeProperty<?>>emptyList()));
+                // Run the gradle build
+                WorkflowJob p1 = r.j.jenkins.createProject(WorkflowJob.class, "FakeProject");
+                p1.setDefinition(new CpsFlowDefinition("node {\n" + build_gradle + "withGradle {\n sh 'gradle'\n}\n}", false));
+                WorkflowRun run = r.j.assertBuildStatus(Result.SUCCESS, p1.scheduleBuild2(0));
+            }
+        });
     }
 
     @Test
     public void testStepDefaultTools() throws Exception {
-        WorkflowJob p1 = j.jenkins.createProject(WorkflowJob.class, "FakeProject");
+        WorkflowJob p1 = r.j.jenkins.createProject(WorkflowJob.class, "FakeProject");
         p1.setDefinition(new CpsFlowDefinition("node {\n" + build_gradle +
                 "withGradle {\n" +
                 "sh 'gradle'\n" + // runs default task
                 "}\n" +
                 "}", false));
-        WorkflowRun r = p1.scheduleBuild2(0).get();
-        j.assertBuildStatusSuccess(r);
+        WorkflowRun run = p1.scheduleBuild2(0).get();
+        r.j.assertBuildStatusSuccess(run);
     }
 
     @Test
     public void testGradleErrorFailsBuild() throws Exception {
-        WorkflowJob p1 = j.jenkins.createProject(WorkflowJob.class, "FakeProject");
+        WorkflowJob p1 = r.j.jenkins.createProject(WorkflowJob.class, "FakeProject");
         p1.setDefinition(new CpsFlowDefinition("node {\n" + build_gradle +
                 "withGradle {\n" +
                 "sh 'gradle unknownTask'\n" +
                 "}\n" +
                 "}", false));
-        WorkflowRun r = p1.scheduleBuild2(0).get();
-        j.assertBuildStatus(Result.FAILURE, r);
+        WorkflowRun run = p1.scheduleBuild2(0).get();
+        r.j.assertBuildStatus(Result.FAILURE, run);
     }
 
     @Test
     public void testStepWithConfiguredGradle() throws Exception {
-        WorkflowJob p1 = j.jenkins.createProject(WorkflowJob.class, "FakeProject");
+        WorkflowJob p1 = r.j.jenkins.createProject(WorkflowJob.class, "FakeProject");
         p1.setDefinition(new CpsFlowDefinition("node {\n" + build_gradle +
                 "withGradle (gradle: 'g2') {\n" +
                 "sh 'gradle'\n" +
                 "}\n" +
                 "}", false));
-        WorkflowRun r = p1.scheduleBuild2(0).get();
-        j.assertBuildStatusSuccess(r);
+        WorkflowRun run = p1.scheduleBuild2(0).get();
+        r.j.assertBuildStatusSuccess(run);
     }
 }
