@@ -23,23 +23,37 @@
  */
 package hudson.plugins.gradle;
 
+import com.google.inject.Inject;
+import hudson.model.Node;
 import hudson.model.Result;
+import hudson.slaves.DumbSlave;
+import hudson.slaves.NodeProperty;
+import hudson.slaves.RetentionStrategy;
 import org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition;
 import org.jenkinsci.plugins.workflow.job.WorkflowJob;
 import org.jenkinsci.plugins.workflow.job.WorkflowRun;
+import hudson.plugins.sshslaves.SSHLauncher;
+import org.jenkinsci.test.acceptance.docker.DockerRule;
+import org.jenkinsci.test.acceptance.junit.WithDocker;
 import org.junit.Rule;
 import org.junit.Test;
 import org.jvnet.hudson.test.JenkinsRule;
+
+import java.util.Collections;
 
 /**
  * Tests the withGradle pipeline step
  *
  * @author Alex Johnson
  */
+@WithDocker
 public class WithGradleWorkFlowTest {
 
     @Rule
     public JenkinsRule j = new JenkinsRule();
+
+    @Rule
+    public DockerRule<GradleContainer> gradleSlave = new DockerRule<GradleContainer>(GradleContainer.class);
 
     private String build_gradle = "writeFile(file:'build.gradle', text:'defaultTasks \\\'hello\\\'\\ntask hello << { println \\\'Hello\\\' }') \n";
 
@@ -51,6 +65,18 @@ public class WithGradleWorkFlowTest {
         TODO? add test for console annotation
         TODO? add test for reloading annotator on Jenkins restart
     */
+
+    @Test
+    public void testGradle () throws Exception {
+        GradleContainer slave = gradleSlave.get();
+        j.jenkins.setNumExecutors(0);
+        j.jenkins.addNode(new DumbSlave("remote", "", "/home/test/slave", "1", Node.Mode.NORMAL, "",
+                new SSHLauncher(slave.ipBound(8080), slave.port(8080), "test", "test", "", ""),
+                RetentionStrategy.INSTANCE, Collections.<NodeProperty<?>>emptyList()));
+        WorkflowJob p1 = j.jenkins.createProject(WorkflowJob.class, "FakeProject");
+        p1.setDefinition(new CpsFlowDefinition("node {\n" + build_gradle + "withGradle {\n sh 'gradle'\n}\n}", false));
+        WorkflowRun r = j.assertBuildStatus(Result.SUCCESS, p1.scheduleBuild2(0));
+    }
 
     @Test
     public void testStepDefaultTools() throws Exception {

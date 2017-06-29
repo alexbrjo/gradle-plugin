@@ -64,12 +64,14 @@ dependencies {
 
   testCompile 'org.spockframework:spock-core:0.7-groovy-1.8'
   jenkinsTest 'org.jenkins-ci.main:jenkins-test-harness:2.22'
+  jenkinsTest('org.jenkins-ci:acceptance-test-harness:1.55') { transitive = true }
 
   jenkinsPlugins('org.jenkins-ci.plugins:structs:1.7') { transitive = true }
   jenkinsPlugins 'org.jenkins-ci.plugins.workflow:workflow-step-api:2.11'
   jenkinsTest('org.jenkins-ci.plugins.workflow:workflow-api:2.15') { transitive = true }
   jenkinsTest('org.jenkins-ci.plugins.workflow:workflow-cps:2.32') { transitive = true }
-  jenkinsTest 'org.jenkins-ci.plugins.workflow:workflow-job:2.11'
+  jenkinsTest('org.jenkins-ci.plugins.workflow:workflow-job:2.11') { transitive = true }
+  jenkinsTest('org.jenkins-ci.plugins:ssh-slaves:1.7') { transitive = true }
   jenkinsTest 'org.jenkins-ci.plugins.workflow:workflow-basic-steps:2.5'
   jenkinsTest 'org.jenkins-ci.plugins.workflow:workflow-scm-step:2.4'
   jenkinsTest 'org.jenkins-ci.plugins.workflow:workflow-support:2.14'
