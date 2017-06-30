@@ -16,7 +16,6 @@ plugins {
   id 'findbugs'
   id 'codenarc'
 }
-
 apply plugin: 'org.jenkins-ci.jpi' // TODO: remove if #87 is merged & released
 
 group = "org.jenkins-ci.plugins"
